@@ -9,6 +9,15 @@ app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledg
 app.include_router(approvals.router, prefix="/api/v1/approvals", tags=["approvals"])
 app.include_router(audit.router, prefix="/api/v1/audit", tags=["audit"])
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {
+        "name": "Unified AI Operating Platform API",
+        "version": "0.1.0",
+        "health": "/health",
+        "docs": "/docs",
+    }
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
