@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ai_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ["5432:5432"]
+
+  api:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes: [".:/app"]
+    command: sh -c "pip install -e . && uvicorn apps.api.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/ai_platform
+    ports: ["8000:8000"]
+    depends_on: [postgres]
