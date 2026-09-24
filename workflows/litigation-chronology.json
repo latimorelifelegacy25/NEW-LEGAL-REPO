@@ -1,0 +1,1 @@
+{"canonical_id":"litigation-chronology","name":"Litigation Chronology","workspace_type":"legal","steps":[{"key":"matter_sync","type":"matter_guard","requires":["matter_id"]},{"key":"chronology","type":"skill","skill":"litigation-operations.chronology"},{"key":"pa_guard","type":"skill","skill":"pa-litigation-command","route":"Organize a matter or answer from a document set"}]}

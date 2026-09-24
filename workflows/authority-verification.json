@@ -1,0 +1,1 @@
+{"canonical_id":"authority-verification","name":"Pennsylvania Authority Verification","workspace_type":"legal","steps":[{"key":"authority_review","type":"skill","skill":"pa-litigation-command","route":"Research or verify Pennsylvania authority"},{"key":"record","type":"artifact_manifest"}]}
