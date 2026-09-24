@@ -1,0 +1,25 @@
+{
+  "matter_id": "S-1214-2026",
+  "name": "Latimore v. Assumption BVM School et al.",
+  "jurisdiction": "Pennsylvania — Schuylkill County Court of Common Pleas",
+  "classification": "confidential",
+  "status": "requires_current_record_reconciliation",
+  "updated_at": "2026-09-24",
+  "caption": "Jackson M. Latimore, Sr. v. Assumption BVM School, Diocese of Allentown, and Carol Boyer",
+  "court": "Court of Common Pleas of Schuylkill County, Pennsylvania",
+  "docket": "S-1214-2026",
+  "operative_document": null,
+  "procedural_posture": null,
+  "deadlines": [],
+  "discovery": [],
+  "sources": [
+    {
+      "type": "skill_snapshot",
+      "path": "legal_skills/pa-litigation-command/references/active-matter-profile.md",
+      "controlling": false
+    }
+  ],
+  "notes": [
+    "Mutable pleading counts, deadlines, discovery status, and current posture intentionally not seeded from the skill snapshot. Reconcile them from the current docket and operative/served documents before use."
+  ]
+}

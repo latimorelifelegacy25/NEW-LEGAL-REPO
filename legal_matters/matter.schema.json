@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legal OS Matter",
+  "type": "object",
+  "required": [
+    "matter_id",
+    "name",
+    "jurisdiction",
+    "classification",
+    "status",
+    "updated_at",
+    "sources"
+  ],
+  "properties": {
+    "matter_id": {"type": "string"},
+    "name": {"type": "string"},
+    "jurisdiction": {"type": "string"},
+    "classification": {"enum": ["public","internal","confidential","restricted"]},
+    "status": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "caption": {"type": ["string","null"]},
+    "court": {"type": ["string","null"]},
+    "docket": {"type": ["string","null"]},
+    "operative_document": {"type": ["string","null"]},
+    "procedural_posture": {"type": ["string","null"]},
+    "deadlines": {"type": "array"},
+    "discovery": {"type": "array"},
+    "sources": {"type": "array"},
+    "notes": {"type": "array"}
+  }
+}
