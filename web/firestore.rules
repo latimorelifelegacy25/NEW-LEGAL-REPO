@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidSavedItem(data, userId) {
+      return data.id is string &&
+        data.userId == userId &&
+        data.type is string &&
+        data.title is string && data.title.size() <= 200 &&
+        data.content is string && data.content.size() <= 50000;
+    }
+
+    function isValidLegalMatter(data, userId) {
+      return data.id is string &&
+        data.userId == userId &&
+        data.clientName is string && data.clientName.size() <= 120 &&
+        data.county is string && data.county.size() <= 60;
+    }
+
+    function isValidWorkspaceExport(data, userId) {
+      return data.id is string &&
+        data.userId == userId &&
+        data.service is string &&
+        data.title is string && data.title.size() <= 200;
+    }
+
+    function isValidRecentSearch(data, userId) {
+      return data.id is string &&
+        data.userId == userId &&
+        data.query is string && data.query.size() <= 200;
+    }
+
+    match /users/{userId}/savedItems/{itemId} {
+      allow get: if isOwner(userId) && isValidId(itemId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(itemId) && isValidSavedItem(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(itemId) && isValidSavedItem(incoming(), userId) &&
+                    incoming().userId == existing().userId &&
+                    incoming().id == existing().id;
+      allow delete: if isOwner(userId) && isValidId(itemId);
+    }
+
+    match /users/{userId}/matters/{matterId} {
+      allow get: if isOwner(userId) && isValidId(matterId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(matterId) && isValidLegalMatter(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(matterId) && isValidLegalMatter(incoming(), userId) &&
+                    incoming().userId == existing().userId &&
+                    incoming().id == existing().id;
+      allow delete: if isOwner(userId) && isValidId(matterId);
+    }
+
+    match /users/{userId}/workspaceExports/{exportId} {
+      allow get: if isOwner(userId) && isValidId(exportId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(exportId) && isValidWorkspaceExport(incoming(), userId);
+      allow update: if false;
+      allow delete: if isOwner(userId) && isValidId(exportId);
+    }
+
+    match /users/{userId}/recentSearches/{searchId} {
+      allow get: if isOwner(userId) && isValidId(searchId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(searchId) && isValidRecentSearch(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(searchId) && isValidRecentSearch(incoming(), userId) &&
+                    incoming().userId == existing().userId &&
+                    incoming().id == existing().id;
+      allow delete: if isOwner(userId) && isValidId(searchId);
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

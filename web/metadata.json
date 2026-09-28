@@ -1,0 +1,6 @@
+{
+  "name": "PA Legal Reference & Workspace Practice Portal",
+  "description": "Comprehensive Pennsylvania legal research system, statutory code explorer, Bluebook citation generator, court pleading drafter, and statute of limitations calculator integrated with Google Workspace (Drive, Docs, Tasks, Chat, Forms, Meet), Firebase Firestore persistence, and multi-turn Gemini Legal Co-Counsel with high thinking and speech narration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
