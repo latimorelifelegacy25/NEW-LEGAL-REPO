@@ -1,0 +1,211 @@
+{
+  "entities": {
+    "SavedItem": {
+      "title": "SavedItem",
+      "description": "A saved legal research item such as a statute, precedent, AI analysis, drafted pleading, or citation snippet.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the saved research item."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns this research item."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["statute", "case", "analysis", "pleading", "citation"],
+          "description": "Category of the saved research entry."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Descriptive title or heading."
+        },
+        "citation": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Formal Pennsylvania or federal statutory/case citation."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "Private attorney, paralegal, or client case notes."
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 50000,
+          "description": "Full text or summary payload."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp when the item was saved."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp when the item was last updated."
+        }
+      },
+      "required": ["id", "userId", "type", "title", "content", "createdAt"]
+    },
+    "LegalMatter": {
+      "title": "LegalMatter",
+      "description": "A case file or legal matter dossier organized by client and county court jurisdiction.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the matter."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the owning practitioner or litigant."
+        },
+        "clientName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Name of the client or party represented."
+        },
+        "caption": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Court caption (e.g. Doe v. Doe)."
+        },
+        "county": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Pennsylvania County Court of Common Pleas venue."
+        },
+        "docketNumber": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Prothonotary or clerk docket number if assigned."
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Legal practice area (e.g., Custody, Truancy, Torts, Support)."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 10000,
+          "description": "Case notes, factual chronology, and trial preparation thoughts."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "clientName", "county", "createdAt"]
+    },
+    "WorkspaceExport": {
+      "title": "WorkspaceExport",
+      "description": "A record of an item exported or synchronized with Google Workspace APIs.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "service": {
+          "type": "string",
+          "enum": ["drive", "docs", "tasks", "chat", "forms", "meet"]
+        },
+        "externalId": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "externalUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "service", "title", "createdAt"]
+    },
+    "RecentSearch": {
+      "title": "RecentSearch",
+      "description": "A recent statute search query or viewed statute topic.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the search history entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user or session owner."
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "The search query string or topic searched."
+        },
+        "statuteId": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Optional specific statute ID matched or selected."
+        },
+        "statuteCitation": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Statute citation if a specific statute was clicked or matched."
+        },
+        "statuteHeading": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Statute heading or summary label."
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Category filtered when search occurred."
+        },
+        "searchedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp when the search was performed."
+        },
+        "resultsCount": {
+          "type": "integer",
+          "description": "Number of matching statutes found."
+        }
+      },
+      "required": ["id", "userId", "query", "searchedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/savedItems/{itemId}": {
+      "schema": "SavedItem",
+      "description": "User's bookmarked statutes, legal precedents, drafted pleadings, and research reports."
+    },
+    "/users/{userId}/matters/{matterId}": {
+      "schema": "LegalMatter",
+      "description": "User's organized legal matter files and case dockets."
+    },
+    "/users/{userId}/workspaceExports/{exportId}": {
+      "schema": "WorkspaceExport",
+      "description": "History of documents and tasks synchronized to Google Drive, Docs, Tasks, Chat, Forms, or Meet."
+    },
+    "/users/{userId}/recentSearches/{searchId}": {
+      "schema": "RecentSearch",
+      "description": "User's last 5 searched statutes and queries for rapid revisit."
+    }
+  }
+}
