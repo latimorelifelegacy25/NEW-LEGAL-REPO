@@ -9,7 +9,9 @@ from apps.api.routes import (
     knowledge,
     legal_verification,
     matters,
+    private_sources,
     review_report,
+    sac_acceptance,
     research,
     skills,
     workflows,
@@ -32,6 +34,8 @@ app.include_router(research.router, prefix="/api/v1/legal/research", tags=["lega
 app.include_router(counts.router, prefix="/api/v1/legal/counts", tags=["legal-counts"])
 app.include_router(review_report.router, prefix="/api/v1/legal/review-report", tags=["legal-review-report"])
 app.include_router(approvals_legal.router, prefix="/api/v1/legal/approvals", tags=["legal-approvals"])
+app.include_router(private_sources.router, prefix="/api/v1/legal/private-sources", tags=["legal-private-sources"])
+app.include_router(sac_acceptance.router, prefix="/api/v1/legal/sac-acceptance", tags=["legal-sac-acceptance"])
 
 @app.get("/")
 def root() -> dict[str, str]:
