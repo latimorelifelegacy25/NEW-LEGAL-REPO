@@ -54,3 +54,33 @@ def apply_approved_edits(
     out=BytesIO()
     doc.save(out)
     return out.getvalue()
+
+
+def read_numbered_docx_paragraphs(data: bytes) -> list[dict]:
+    """Return Word list-numbered paragraphs in document order.
+
+    Word often stores pleading numbers in w:numPr rather than literal paragraph text.
+    This detects those paragraphs without pretending the visible number is embedded
+    in p.text. Sequential display numbers are assigned in document order and the
+    underlying numId/ilvl are retained for audit.
+    """
+    doc=Document(BytesIO(data))
+    out=[]
+    display_number=0
+    for idx,p in enumerate(doc.paragraphs):
+        pPr=p._p.pPr
+        numPr=pPr.numPr if pPr is not None else None
+        if numPr is None:
+            continue
+        display_number += 1
+        num_id=int(numPr.numId.val) if numPr.numId is not None else None
+        ilvl=int(numPr.ilvl.val) if numPr.ilvl is not None else None
+        out.append({
+            "index": idx,
+            "display_number": display_number,
+            "text": p.text,
+            "style": p.style.name if p.style else None,
+            "num_id": num_id,
+            "level": ilvl,
+        })
+    return out
