@@ -1,12 +1,15 @@
 from fastapi import FastAPI
 from apps.api.routes import (
     approvals,
+    approvals_legal,
     audit,
+    counts,
     drafting,
     imports,
     knowledge,
     legal_verification,
     matters,
+    review_report,
     research,
     skills,
     workflows,
@@ -26,6 +29,9 @@ app.include_router(workspace.router, prefix="/api/v1/legal/workspace", tags=["le
 app.include_router(drafting.router, prefix="/api/v1/legal/drafting", tags=["legal-drafting"])
 app.include_router(legal_verification.router, prefix="/api/v1/legal/verification", tags=["legal-verification"])
 app.include_router(research.router, prefix="/api/v1/legal/research", tags=["legal-research"])
+app.include_router(counts.router, prefix="/api/v1/legal/counts", tags=["legal-counts"])
+app.include_router(review_report.router, prefix="/api/v1/legal/review-report", tags=["legal-review-report"])
+app.include_router(approvals_legal.router, prefix="/api/v1/legal/approvals", tags=["legal-approvals"])
 
 @app.get("/")
 def root() -> dict[str, str]:
