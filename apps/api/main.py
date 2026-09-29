@@ -4,6 +4,7 @@ from apps.api.routes import (
     approvals_legal,
     audit,
     counts,
+    docx_export,
     drafting,
     imports,
     knowledge,
@@ -36,6 +37,7 @@ app.include_router(review_report.router, prefix="/api/v1/legal/review-report", t
 app.include_router(approvals_legal.router, prefix="/api/v1/legal/approvals", tags=["legal-approvals"])
 app.include_router(private_sources.router, prefix="/api/v1/legal/private-sources", tags=["legal-private-sources"])
 app.include_router(sac_acceptance.router, prefix="/api/v1/legal/sac-acceptance", tags=["legal-sac-acceptance"])
+app.include_router(docx_export.router, prefix="/api/v1/legal/docx", tags=["legal-docx"])
 
 @app.get("/")
 def root() -> dict[str, str]:
