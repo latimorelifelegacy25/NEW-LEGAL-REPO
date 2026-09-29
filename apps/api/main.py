@@ -1,7 +1,19 @@
 from fastapi import FastAPI
-from apps.api.routes import approvals, audit, imports, knowledge, skills, workflows
+from apps.api.routes import (
+    approvals,
+    audit,
+    drafting,
+    imports,
+    knowledge,
+    legal_verification,
+    matters,
+    research,
+    skills,
+    workflows,
+    workspace,
+)
 
-app = FastAPI(title="Unified AI Operating Platform API", version="0.1.0")
+app = FastAPI(title="Unified AI Operating Platform API", version="0.2.0")
 app.include_router(imports.router, prefix="/api/v1/imports", tags=["imports"])
 app.include_router(skills.router, prefix="/api/v1/skills", tags=["skills"])
 app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["workflows"])
@@ -9,13 +21,20 @@ app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledg
 app.include_router(approvals.router, prefix="/api/v1/approvals", tags=["approvals"])
 app.include_router(audit.router, prefix="/api/v1/audit", tags=["audit"])
 
+app.include_router(matters.router, prefix="/api/v1/legal/matters", tags=["legal-matters"])
+app.include_router(workspace.router, prefix="/api/v1/legal/workspace", tags=["legal-workspace"])
+app.include_router(drafting.router, prefix="/api/v1/legal/drafting", tags=["legal-drafting"])
+app.include_router(legal_verification.router, prefix="/api/v1/legal/verification", tags=["legal-verification"])
+app.include_router(research.router, prefix="/api/v1/legal/research", tags=["legal-research"])
+
 @app.get("/")
 def root() -> dict[str, str]:
     return {
         "name": "Unified AI Operating Platform API",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "health": "/health",
         "docs": "/docs",
+        "legal_workspace": "/api/v1/legal/workspace/S-1214-2026",
     }
 
 @app.get("/health")
