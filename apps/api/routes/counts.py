@@ -1,17 +1,27 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from services.legal.count_mapping import build_count_map
+from services.legal.count_mapping import derive_count_map
 
 router = APIRouter()
 
+class CountHeading(BaseModel):
+    text: str
+    start_paragraph: int | None = None
+
 class CountMappingRequest(BaseModel):
-    docket: str
-    mapping: dict[str, list[int]] = Field(default_factory=dict)
+    headings: list[CountHeading] = Field(default_factory=list)
+    paragraph_numbers: list[int] = Field(default_factory=list)
+    mapping: dict[str,list[int]] = Field(default_factory=dict)
 
 @router.post("/map")
 def map_counts(payload: CountMappingRequest) -> dict:
+    counts=derive_count_map(
+        [h.model_dump() for h in payload.headings],
+        payload.paragraph_numbers,
+        payload.mapping,
+    )
     return {
-        "docket": payload.docket,
-        "counts": build_count_map(payload.mapping),
-        "note": "Mappings must be derived from the actual SAC and supporting source documents when private matter data is loaded.",
+        "counts": counts,
+        "count_total": len(counts),
+        "source_policy": "Count structure is derived from the loaded operative pleading; no fixed count total is assumed.",
     }
