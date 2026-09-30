@@ -29,7 +29,7 @@ def draft_pleading_facts(payload: PleadingDraftRequest) -> dict:
     meta = (
         f"{n}. {' '.join(meta_bits)}, {payload.sender} transmitted an email from "
         f"{payload.sender_email} to {payload.recipient} at {payload.recipient_email}, "
-        f"subject line \"{payload.subject}.\" ({payload.exhibit})."
+        f"subject line \"{payload.subject}\". ({payload.exhibit})."
     )
     paragraphs = [meta]
     n += 1
