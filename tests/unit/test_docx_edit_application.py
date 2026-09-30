@@ -40,3 +40,30 @@ def test_only_approved_edits_are_applied():
     assert paras[0]["text"]=="Paragraph one corrected."
     assert paras[1]["text"]=="Paragraph two."
     assert sum(1 for d in decisions if d["applied"])==1
+
+
+def test_before_text_conflict_is_rejected():
+    import pytest
+    data=make_docx()
+    edits=[{
+        "edit_id":"e-conflict",
+        "status":"approved",
+        "location":"paragraph-index:0",
+        "before":"Stale paragraph text.",
+        "after":"Should never be applied.",
+    }]
+    with pytest.raises(ValueError, match="source text no longer matches"):
+        apply_approved_edits(original_data=data, approved_edits=edits)
+
+def test_invalid_paragraph_index_is_rejected():
+    import pytest
+    data=make_docx()
+    edits=[{
+        "edit_id":"e-index",
+        "status":"approved",
+        "location":"paragraph-index:999",
+        "before":"Paragraph one.",
+        "after":"No.",
+    }]
+    with pytest.raises(ValueError, match="out of range"):
+        apply_approved_edits(original_data=data, approved_edits=edits)
