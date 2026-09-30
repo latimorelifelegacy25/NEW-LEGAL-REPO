@@ -31,3 +31,10 @@ def test_quote_exact_match():
     )
     assert result["matched"] is True
     assert result["similarity"] == 1.0
+
+
+def test_private_path_sanitizes_all_segments():
+    from services.legal.private_ingestion import build_private_path
+    path=str(build_private_path("../S-1214-2026","../../secret","../source.docx"))
+    assert ".." not in path
+    assert path.startswith("private")
