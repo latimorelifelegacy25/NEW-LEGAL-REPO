@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from dataclasses import dataclass, asdict
 from io import BytesIO
 from typing import Iterable
@@ -24,32 +23,28 @@ def read_docx_paragraphs(data: bytes) -> list[dict]:
         )))
     return out
 
-def clone_document(data: bytes) -> Document:
-    source=Document(BytesIO(data))
-    target=Document()
-    body=target._element.body
-    for child in list(body):
-        body.remove(child)
-    for child in source._element.body:
-        body.append(deepcopy(child))
-    return target
-
 def apply_approved_edits(
     *,
     original_data: bytes,
     approved_edits: Iterable[dict],
 ) -> bytes:
-    doc=clone_document(original_data)
+    doc=Document(BytesIO(original_data))
     paragraphs=doc.paragraphs
     for edit in approved_edits:
         if edit.get("status") != "approved":
             continue
         location=edit.get("location", "")
         if not location.startswith("paragraph-index:"):
-            continue
-        idx=int(location.split(":",1)[1])
+            raise ValueError(f"Unsupported edit location: {location}")
+        try:
+            idx=int(location.split(":",1)[1])
+        except ValueError as exc:
+            raise ValueError(f"Invalid paragraph index: {location}") from exc
         if idx < 0 or idx >= len(paragraphs):
-            continue
+            raise ValueError(f"Paragraph index out of range: {idx}")
+        expected=str(edit.get("before",""))
+        if paragraphs[idx].text != expected:
+            raise ValueError(f"Edit conflict at paragraph-index:{idx}: source text no longer matches approved 'before' text")
         paragraphs[idx].text=str(edit.get("after",""))
     out=BytesIO()
     doc.save(out)
