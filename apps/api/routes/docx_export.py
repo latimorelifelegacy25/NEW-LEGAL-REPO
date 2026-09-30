@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from services.legal.docx_io import apply_approved_edits, read_docx_paragraphs
-from services.legal.edit_application import filter_approved_edits
+from services.legal import approvals
 
 router = APIRouter()
 
@@ -14,12 +14,13 @@ class DocxInspectRequest(BaseModel):
 class ExportRequest(BaseModel):
     filename: str
     original_base64: str
-    edits: list[dict] = Field(default_factory=list)
+    document_id: str
+    approval_ids: list[str] = Field(default_factory=list)
 
 @router.post("/inspect")
 def inspect_docx(payload: DocxInspectRequest) -> dict:
     try:
-        data=base64.b64decode(payload.content_base64)
+        data=base64.b64decode(payload.content_base64, validate=True)
         paragraphs=read_docx_paragraphs(data)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Unable to read DOCX: {exc}")
@@ -33,11 +34,13 @@ def inspect_docx(payload: DocxInspectRequest) -> dict:
 @router.post("/export-approved")
 def export_approved(payload: ExportRequest) -> dict:
     try:
-        original=base64.b64decode(payload.original_base64)
+        original=base64.b64decode(payload.original_base64, validate=True)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Invalid DOCX payload: {exc}")
 
-    approved, decisions=filter_approved_edits(payload.edits)
+    approved=approvals.approved_for_document(payload.document_id, payload.approval_ids)
+    if len(approved) != len(set(payload.approval_ids)):
+        raise HTTPException(status_code=409, detail="Requested edits must exist, match the document, and be approved.")
     try:
         exported=apply_approved_edits(
             original_data=original,
@@ -52,6 +55,7 @@ def export_approved(payload: ExportRequest) -> dict:
         "filename": output_name,
         "content_base64": base64.b64encode(exported).decode("ascii"),
         "applied_edit_count": len(approved),
-        "decisions": decisions,
+        "approval_ids": payload.approval_ids,
         "original_preserved": True,
+        "formatting_note": "Unedited package content is preserved; an edited paragraph may have normalized run-level formatting.",
     }
