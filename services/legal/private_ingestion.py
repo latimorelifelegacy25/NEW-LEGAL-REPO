@@ -17,9 +17,14 @@ class PrivateDocument:
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
+def _safe_segment(value: str, fallback: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._") or fallback
+
 def build_private_path(docket: str, document_id: str, filename: str) -> Path:
-    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", filename).strip("._") or "document"
-    return PRIVATE_ROOT / docket / document_id / safe_name
+    safe_docket=_safe_segment(docket, "matter")
+    safe_document_id=_safe_segment(document_id, "document")
+    safe_name=_safe_segment(filename, "document")
+    return PRIVATE_ROOT / safe_docket / safe_document_id / safe_name
 
 def register_private_document(
     *,
