@@ -7,3 +7,11 @@ __pycache__/
 .vercel/
 legal/skills/
 legal/private/
+private/
+matters/
+case-data/
+evidence/
+exhibits/
+uploads/
+*.sac.docx
+*.sealed.pdf
