@@ -40,34 +40,16 @@ def run_acceptance(payload: AcceptanceRequest) -> dict:
                 source="paragraph-to-exhibit linking",
             ))
 
-    counts=derive_count_map(
-        [h.model_dump() for h in payload.count_headings],
-        numbers,
-        payload.count_mapping,
-    )
-    serialized=[{
-        "code":i.code,"severity":i.severity,"location":i.location,
-        "message":i.message,"source":i.source,
-    } for i in issues]
-
+    serialized=[{"code":i.code,"severity":i.severity,"location":i.location,"message":i.message,"source":i.source} for i in issues]
+    counts=derive_count_map([h.model_dump() for h in payload.count_headings],numbers,payload.count_mapping)
     return {
         "docket":payload.docket,
-        "checks":{
-            "paragraph_numbering":True,
-            "duplicate_missing":True,
-            "docket_references":True,
-            "exhibit_labels":True,
-            "paragraph_exhibit_links":True,
-            "document_derived_count_mapping":True,
-        },
+        "checks":{"paragraph_numbering":True,"duplicate_missing":True,"docket_references":True,"exhibit_labels":True,"paragraph_exhibit_links":True,"document_derived_count_mapping":True},
         "links":links,
         "counts":counts,
+        "count_total":len(counts),
         "issues":serialized,
         "issue_count":len(serialized),
         "status":"issues_found" if serialized else "passed",
-        "limitations":[
-            "name/date verification requires normalized source metadata or loaded source text",
-            "quotation verification runs through the private source quote endpoint",
-            "DOCX export applies only server-approved edits and rejects source-text conflicts",
-        ],
+        "limitations":["name/date verification requires normalized source metadata or loaded source text","quotation verification runs through the private source quote endpoint","DOCX export applies server-approved edits only"],
     }
