@@ -1,8 +1,10 @@
 import hmac
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from apps.api.routes import (
     approvals,
     approvals_legal,
@@ -55,6 +57,11 @@ app.include_router(private_sources.router, prefix="/api/v1/legal/private-sources
 app.include_router(sac_acceptance.router, prefix="/api/v1/legal/sac-acceptance", tags=["legal-sac-acceptance"])
 app.include_router(docx_export.router, prefix="/api/v1/legal/docx", tags=["legal-docx"])
 
+# Static UI only. Source documents and vault data remain in the user's browser.
+_frontend = Path(__file__).resolve().parents[2] / "web" / "dist"
+if _frontend.is_dir():
+    app.mount("/app", StaticFiles(directory=_frontend, html=True), name="local-legal-workspace")
+
 @app.get("/")
 def root() -> dict[str, str]:
     return {
@@ -62,6 +69,7 @@ def root() -> dict[str, str]:
         "version": "0.2.0",
         "health": "/health",
         "docs": "/docs",
+        "local_app": "/app/",
         "legal_workspace": "/api/v1/legal/workspace/S-1214-2026",
     }
 
