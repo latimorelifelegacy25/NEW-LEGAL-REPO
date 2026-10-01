@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Document as WordDocument, Paragraph as WordParagraph, Packer, TextRun } from 'docx';
-import { StoredDocument, VaultData, downloadOriginal, loadVault, readFile, saveVault, vaultExists } from './services/localVault';
+import { StoredDocument, VaultData, downloadEncryptedBackup, downloadOriginal, loadVault, readFile, restoreEncryptedBackup, saveVault, vaultExists } from './services/localVault';
 
 interface NumberedParagraph { number: number; text: string; exhibits: string[] }
 interface Finding { kind: string; paragraph: number; detail: string }
@@ -121,13 +121,24 @@ export default function PrivateMatterApp() {
     <label className="mt-6 block text-sm font-bold" htmlFor="vault-password">Passphrase</label>
     <input id="vault-password" className="mt-2 w-full rounded border p-3" type="password" value={passphraseInput} onChange={e => setPassphraseInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && unlock()} />
     <button className="mt-4 rounded bg-slate-800 px-5 py-3 font-bold text-white" onClick={unlock}>{exists ? 'Unlock' : 'Create vault'}</button>
+    {exists === false && <label className="mt-6 block text-sm font-semibold">Restore encrypted backup
+      <input type="file" accept=".json,application/json" className="mt-2 block w-full" onChange={async e => {
+        const file = e.target.files?.[0]; if (!file) return;
+        try { await restoreEncryptedBackup(file); setExists(true); setMessage('Encrypted backup restored. Enter its original passphrase to unlock.'); }
+        catch (error) { setMessage(`Restore failed: ${String(error)}`); }
+        e.currentTarget.value = '';
+      }} />
+    </label>}
     {message && <p role="alert" className="mt-4 text-amber-800">{message}</p>}
   </main>;
 
   return <main className="mx-auto max-w-7xl p-4 text-slate-900 md:p-8">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-amber-600 pb-5">
       <div><p className="text-sm font-bold uppercase tracking-widest text-amber-700">Private local workspace</p><h1 className="text-3xl font-bold">Latimore Legal OS</h1><p>{data.caption} · {data.docket}</p></div>
-      <button className="rounded border border-slate-700 px-4 py-2" onClick={lock}>Save and lock</button>
+      <div className="flex gap-2"><button className="rounded border border-slate-700 px-4 py-2" onClick={async () => {
+        try { await saveVault(passphrase, data); await downloadEncryptedBackup(); setMessage('Encrypted backup downloaded. Keep it and the passphrase separately.'); }
+        catch (error) { setMessage(`Backup failed: ${String(error)}`); }
+      }}>Download encrypted backup</button><button className="rounded border border-slate-700 px-4 py-2" onClick={lock}>Save and lock</button></div>
     </header>
     <div role="status" className="my-5 rounded border border-amber-400 bg-amber-50 p-3 text-sm">{saving ? 'Saving encrypted changes…' : 'Saved locally on this device.'} Structural checks are limited to loaded material. Legal authorities, dates, and quotations require source review. {message}</div>
     <section className="grid gap-6 lg:grid-cols-[minmax(250px,1fr)_minmax(0,2fr)]">

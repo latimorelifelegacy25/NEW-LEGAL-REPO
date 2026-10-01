@@ -61,6 +61,35 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
 
 export async function vaultExists(): Promise<boolean> { return !!(await readRecord()); }
 
+export async function downloadEncryptedBackup(): Promise<void> {
+  await pendingSave;
+  const record = await readRecord();
+  if (!record) throw new Error('No saved vault exists.');
+  const bytes = new Uint8Array(record.ciphertext);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.slice(i, i + 8192));
+  const backup = JSON.stringify({ format: DATABASE, version: 1, salt: record.salt, iv: record.iv, ciphertext: btoa(binary) });
+  const url = URL.createObjectURL(new Blob([backup], { type: 'application/json' }));
+  const link = document.createElement('a'); link.href = url; link.download = 'Latimore_Legal_OS_Encrypted_Backup.json'; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function restoreEncryptedBackup(file: File): Promise<void> {
+  if (await vaultExists()) throw new Error('A vault already exists in this browser; restoration would replace it.');
+  if (file.size > 60 * 1024 * 1024) throw new Error('Backup exceeds 60 MB.');
+  const value: unknown = JSON.parse(await file.text());
+  if (!value || typeof value !== 'object') throw new Error('Invalid backup.');
+  const backup = value as Record<string, unknown>;
+  if (backup.format !== DATABASE || backup.version !== 1 || typeof backup.ciphertext !== 'string' ||
+      !Array.isArray(backup.salt) || !Array.isArray(backup.iv) ||
+      backup.salt.length !== 16 || backup.iv.length !== 12 ||
+      ![...backup.salt, ...backup.iv].every(x => Number.isInteger(x) && x >= 0 && x <= 255))
+    throw new Error('Unsupported or invalid backup format.');
+  const binary = atob(backup.ciphertext);
+  const ciphertext = Uint8Array.from(binary, character => character.charCodeAt(0)).buffer;
+  await writeRecord({ salt: backup.salt as number[], iv: backup.iv as number[], ciphertext });
+}
+
 let pendingSave: Promise<void> = Promise.resolve();
 export function saveVault(passphrase: string, data: VaultData): Promise<void> {
   const snapshot = structuredClone(data);
