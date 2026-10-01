@@ -81,7 +81,7 @@ export default function PrivateMatterApp() {
       const source = await readFile(file);
       const doc: StoredDocument = { id: crypto.randomUUID(), name: file.name, kind, exhibit: exhibit?.trim().toUpperCase(),
         mime: file.type, sha256: source.sha256, originalBase64: source.base64, extractedText: source.text,
-        numberedText: source.numberedText, uploadedAt: new Date().toISOString() };
+        numberedText: source.numberedText, countHeadings: source.countHeadings, uploadedAt: new Date().toISOString() };
       setData(prev => ({ ...prev, documents: [...prev.documents, doc], edits: kind === 'complaint' ? {} : prev.edits }));
       setSelected(doc.id);
       setMessage(source.text ? `Loaded ${file.name}; compare extracted text and reconstructed Word list numbers with the original.` :
@@ -110,6 +110,7 @@ export default function PrivateMatterApp() {
     const rows = [
       `Review report — ${data.docket}. Generated ${new Date().toLocaleString()}. Structural and exact text checks only; facts, context and authorities remain unverified.`,
       `Complaint: ${complaint?.name || 'none'}; SHA-256: ${complaint?.sha256 || 'none'}; numbered source items: ${paragraphs.length}.`,
+      ...(complaint?.countHeadings || []).map((heading, index, all) => `Count ${heading.count} — ${heading.title}: source items ${heading.startItem}–${(all[index + 1]?.startItem || paragraphs.length + 1) - 1}.`),
       ...findings.map(item => `¶${item.paragraph} — ${item.kind}: ${item.detail}`),
       ...quoteChecks.map(item => `¶${item.paragraph} — ${item.status}: “${item.quote}” | ${item.sources.join('; ')} | SHA-256 ${item.sourceHashes.join('; ')}`),
     ];
@@ -179,6 +180,7 @@ export default function PrivateMatterApp() {
           {complaint && parsed.length > 0 && !findings.length && <p className="mt-3">No numbering gaps, duplicates, or missing loaded exhibits detected. Facts and quotations remain unverified.</p>}
           {complaint && <div className="mt-4 border-t pt-3 text-sm"><h3 className="font-bold">Exhibit quotation text checks</h3><p>{quoteChecks.filter(x => x.status === 'matched').length} exact text matches · {quoteChecks.filter(x => x.status === 'not-found').length} not found · {quoteChecks.filter(x => x.status === 'source-unavailable').length} source text unavailable. Checks cover quotations of at least 20 characters in paragraphs citing loaded exhibits. A text match does not establish context or accuracy.</p><ul className="mt-2 max-h-64 space-y-2 overflow-auto">{quoteChecks.filter(x => x.status !== 'matched').map((check, index) => <li key={index} className="rounded bg-amber-50 p-2">¶{check.paragraph}: {check.status === 'not-found' ? 'Text not found' : 'Source text unavailable'} — “{check.quote}” · {check.sources.join('; ')}</li>)}</ul></div>}
         </section>
+        {!!complaint?.countHeadings?.length && <section className="rounded-xl bg-white p-5 shadow"><h2 className="text-xl font-bold">Counts in the uploaded pleading ({complaint.countHeadings.length})</h2><p className="mt-1 text-sm text-slate-600">Ranges locate numbered source items under each heading. They do not establish which prior facts prove a count.</p><ul className="mt-3 grid gap-2 md:grid-cols-2">{complaint.countHeadings.map((heading, index, all) => <li key={`${heading.count}-${index}`} className="rounded border p-2"><strong>Count {heading.count}</strong> — {heading.title}<span className="block text-sm">Items {heading.startItem}–{(all[index + 1]?.startItem || paragraphs.length + 1) - 1}</span></li>)}</ul></section>}
         <section className="grid gap-4 rounded-xl bg-white p-5 shadow xl:grid-cols-2">
           <div><h2 className="text-lg font-bold">Working paragraphs ({paragraphs.length})</h2><div className="mt-3 max-h-[65vh] space-y-3 overflow-auto">{paragraphs.map((para, index) => <article key={`${para.number}-${index}`} className="rounded border p-3"><strong>¶{para.number}</strong><textarea aria-label={`Paragraph ${para.number}`} className="mt-2 min-h-28 w-full rounded border p-2" value={para.text} onChange={e => setData(prev => ({ ...prev, edits: { ...prev.edits, [String(index)]: e.target.value } }))} />{para.exhibits.map((ex, i) => <button key={i} className="mr-2 text-sm text-amber-800 underline" onClick={() => { const doc = data.documents.find(d => d.kind === 'exhibit' && d.exhibit === ex); if (doc) setSelected(doc.id); }}>{`Exhibit ${ex}`}</button>)}</article>)}</div></div>
           <div><h2 className="text-lg font-bold">Source: {active?.name || 'None selected'}</h2><p className="mt-1 text-xs text-slate-600">Read-only extracted text. Compare it with the downloadable original file.</p><pre className="mt-3 max-h-[65vh] overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 font-serif text-sm">{documentText || 'No text extracted for this file format.'}</pre></div>
