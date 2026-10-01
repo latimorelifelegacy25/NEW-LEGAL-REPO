@@ -4,7 +4,7 @@ export interface ReviewParagraph { number: number; text: string; exhibits: strin
 export interface QuoteCheck {
   paragraph: number;
   quote: string;
-  status: 'matched' | 'not-found' | 'source-unavailable';
+  status: 'matched' | 'not-found' | 'source-unavailable' | 'no-citation';
   sources: string[];
   sourceHashes: string[];
 }
@@ -23,11 +23,14 @@ const normalize = (value: string) => value.normalize('NFKC').replace(/\s+/g, ' '
 
 export function reviewQuotes(paragraphs: ReviewParagraph[], documents: StoredDocument[]): QuoteCheck[] {
   const exhibits = documents.filter(doc => doc.kind === 'exhibit');
-  return paragraphs.flatMap(para => {
-    if (!para.exhibits.length) return [];
+  return paragraphs.flatMap((para): QuoteCheck[] => {
+    const quotes = substantiveQuotes(para.text);
+    if (!para.exhibits.length) return quotes.map(quote => ({
+      paragraph: para.number, quote, status: 'no-citation' as const, sources: [], sourceHashes: [],
+    }));
     const sources = para.exhibits.flatMap(label => exhibits.filter(doc => doc.exhibit?.toUpperCase() === label));
     if (!sources.length) return []; // Missing exhibit is reported by the structural audit.
-    return substantiveQuotes(para.text).map(quote => {
+    return quotes.map(quote => {
       const available = sources.filter(doc => !!doc.extractedText.trim());
       const matched = available.filter(doc => normalize(doc.extractedText).includes(normalize(quote)));
       return {
