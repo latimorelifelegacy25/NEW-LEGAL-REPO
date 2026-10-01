@@ -8,6 +8,7 @@ export interface StoredDocument {
   originalBase64: string;
   extractedText: string;
   numberedText?: string;
+  countHeadings?: Array<{ count: string; title: string; startItem: number }>;
   uploadedAt: string;
 }
 
@@ -115,7 +116,7 @@ export async function loadVault(passphrase: string): Promise<VaultData | null> {
   return JSON.parse(new TextDecoder().decode(clear)) as VaultData;
 }
 
-export async function readFile(file: File): Promise<{ base64: string; sha256: string; text: string; numberedText?: string }> {
+export async function readFile(file: File): Promise<{ base64: string; sha256: string; text: string; numberedText?: string; countHeadings?: StoredDocument['countHeadings'] }> {
   const bytes = await file.arrayBuffer();
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
     .map(byte => byte.toString(16).padStart(2, '0')).join('');
@@ -125,6 +126,7 @@ export async function readFile(file: File): Promise<{ base64: string; sha256: st
   const base64 = btoa(binary);
   const ext = file.name.toLowerCase().split('.').pop();
   let numberedText: string | undefined;
+  let countHeadings: StoredDocument['countHeadings'];
   let text = ['txt', 'md'].includes(ext || '') ? new TextDecoder().decode(bytes) : '';
   if (ext === 'docx') {
     const mammoth = await import('mammoth');
@@ -133,8 +135,33 @@ export async function readFile(file: File): Promise<{ base64: string; sha256: st
     const document = new DOMParser().parseFromString(html, 'text/html');
     const listItems = [...document.querySelectorAll('li')];
     if (listItems.length) numberedText = listItems.map((li, i) => `${i + 1}. ${li.textContent?.trim() || ''}`).join('\n');
+    let itemNumber = 0;
+    countHeadings = [];
+    for (const element of document.querySelectorAll('p,h1,h2,h3,li')) {
+      if (element.tagName === 'LI') itemNumber++;
+      if (element.tagName === 'LI') continue;
+      const heading = element.textContent?.trim().match(/^COUNT\s+([IVXLCDM]+)\s*[—–-]\s*(.+)$/i);
+      if (heading) countHeadings.push({ count: heading[1].toUpperCase(), title: heading[2].trim(), startItem: itemNumber + 1 });
+    }
   }
-  return { base64, sha256, text, numberedText };
+  if (ext === 'pdf') {
+    try {
+      const pdfjs = await import('pdfjs-dist');
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+      const task = pdfjs.getDocument({ data: new Uint8Array(bytes) });
+      try {
+        const pdf = await task.promise;
+        const pages: string[] = [];
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+          const page = await pdf.getPage(pageNumber);
+          const content = await page.getTextContent();
+          pages.push(content.items.map(item => 'str' in item ? item.str : '').join(' '));
+        }
+        text = pages.join('\n\n');
+      } finally { await task.destroy(); }
+    } catch { text = ''; } // Retain the original even if a PDF is scanned, encrypted, or unsupported.
+  }
+  return { base64, sha256, text, numberedText, countHeadings };
 }
 
 export function downloadOriginal(doc: StoredDocument): void {
