@@ -1,4 +1,8 @@
-from fastapi import FastAPI
+import hmac
+import os
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from apps.api.routes import (
     approvals,
     approvals_legal,
@@ -20,6 +24,18 @@ from apps.api.routes import (
 )
 
 app = FastAPI(title="Unified AI Operating Platform API", version="0.2.0")
+
+@app.middleware("http")
+async def protect_hosted_legal_api(request: Request, call_next):
+    """Never serve case routes from the hosted API without an owner secret."""
+    if request.url.path.startswith("/api/v1/legal/") and os.getenv("VERCEL"):
+        token = os.getenv("LEGAL_OS_OWNER_TOKEN", "")
+        if len(token) < 32:
+            return JSONResponse(status_code=503, content={"detail": "Private Legal OS API is disabled."})
+        supplied = request.headers.get("authorization", "")
+        if not hmac.compare_digest(supplied, f"Bearer {token}"):
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized"}, headers={"WWW-Authenticate": "Bearer"})
+    return await call_next(request)
 app.include_router(imports.router, prefix="/api/v1/imports", tags=["imports"])
 app.include_router(skills.router, prefix="/api/v1/skills", tags=["skills"])
 app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["workflows"])
