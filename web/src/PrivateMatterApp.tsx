@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Document as WordDocument, Paragraph as WordParagraph, Packer, TextRun } from 'docx';
 import { StoredDocument, VaultData, downloadEncryptedBackup, downloadOriginal, loadVault, readFile, restoreEncryptedBackup, saveVault, vaultExists } from './services/localVault';
+import { citedExhibits, reviewQuotes } from './services/quoteReview';
 
 interface NumberedParagraph { number: number; text: string; exhibits: string[] }
 interface Finding { kind: string; paragraph: number; detail: string }
@@ -12,7 +13,7 @@ function paragraphsFrom(text: string): NumberedParagraph[] {
     const match = chunk.trim().match(/^(?:¶\s*)?(\d+)[.)]\s+([\s\S]+)/);
     if (!match) return [];
     return [{ number: Number(match[1]), text: match[2].trim(),
-      exhibits: [...match[2].matchAll(/\bExhibit\s+([A-Z](?:-\d+)?)/gi)].map(item => item[1].toUpperCase()) }];
+      exhibits: citedExhibits(match[2]) }];
   });
 }
 
@@ -58,6 +59,7 @@ export default function PrivateMatterApp() {
   const parsed = useMemo(() => paragraphsFrom(complaint?.numberedText || complaint?.extractedText || ''), [complaint]);
   const paragraphs = useMemo(() => parsed.map((p, index) => ({ ...p, text: data.edits[String(index)] ?? p.text })), [parsed, data.edits]);
   const findings = useMemo(() => audit(paragraphs, data.documents), [paragraphs, data.documents]);
+  const quoteChecks = useMemo(() => reviewQuotes(paragraphs, data.documents), [paragraphs, data.documents]);
   const active = data.documents.find(doc => doc.id === selected) || complaint;
   const documentText = active?.extractedText || '';
 
@@ -101,6 +103,19 @@ export default function PrivateMatterApp() {
     ] }] });
     const url = URL.createObjectURL(await Packer.toBlob(word));
     const link = document.createElement('a'); link.href = url; link.download = `Working_Paragraph_Draft_${data.docket}.docx`; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function exportReview() {
+    const rows = [
+      `Review report — ${data.docket}. Generated ${new Date().toLocaleString()}. Structural and exact text checks only; facts, context and authorities remain unverified.`,
+      `Complaint: ${complaint?.name || 'none'}; SHA-256: ${complaint?.sha256 || 'none'}; numbered source items: ${paragraphs.length}.`,
+      ...findings.map(item => `¶${item.paragraph} — ${item.kind}: ${item.detail}`),
+      ...quoteChecks.map(item => `¶${item.paragraph} — ${item.status}: “${item.quote}” | ${item.sources.join('; ')} | SHA-256 ${item.sourceHashes.join('; ')}`),
+    ];
+    const word = new WordDocument({ sections: [{ children: rows.map(row => new WordParagraph({ text: row })) }] });
+    const url = URL.createObjectURL(await Packer.toBlob(word));
+    const link = document.createElement('a'); link.href = url; link.download = `SAC_Source_Review_${data.docket}.docx`; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
@@ -155,13 +170,14 @@ export default function PrivateMatterApp() {
         <ul className="mt-5 space-y-2">{data.documents.map(doc => <li key={doc.id} className="rounded border p-2 text-sm"><button className="font-semibold text-left" onClick={() => setSelected(doc.id)}>{doc.exhibit && `Exhibit ${doc.exhibit} · `}{doc.name}</button><p className="break-all text-xs text-slate-500">SHA-256: {doc.sha256}</p><button className="mt-1 text-amber-800 underline" onClick={() => downloadOriginal(doc)}>Download original</button></li>)}</ul>
       </aside>
       <div className="space-y-6">
-        <section className="rounded-xl bg-white p-5 shadow"><div className="flex items-center justify-between gap-3"><h2 className="text-xl font-bold">Review findings ({findings.length})</h2><button disabled={!paragraphs.length} onClick={exportDraft} className="rounded bg-amber-600 px-4 py-2 font-bold text-white disabled:opacity-40">Export editable draft</button></div>
+        <section className="rounded-xl bg-white p-5 shadow"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold">Review findings ({findings.length})</h2><div className="flex gap-2"><button disabled={!paragraphs.length} onClick={exportReview} className="rounded border border-amber-700 px-4 py-2 font-bold disabled:opacity-40">Export review report</button><button disabled={!paragraphs.length} onClick={exportDraft} className="rounded bg-amber-600 px-4 py-2 font-bold text-white disabled:opacity-40">Export editable draft</button></div></div>
           {!complaint && <p className="mt-3">Upload your SAC to begin the review.</p>}
           {complaint?.numberedText && <p className="mt-3 text-sm text-amber-800">Word list numbers were reconstructed in source order. This file yielded {parsed.length} list items across the document. Exhibit indexes and other lists may be included. Confirm pleading boundaries and actual numbering against the original before using the exported draft.</p>}
           {complaint?.numberedText && <div className="mt-3 flex flex-wrap gap-3 text-sm"><label>First source item<input aria-label="First source item" type="number" min="1" max={parsed.length} value={rangeStart} onChange={e => setRangeStart(e.target.value)} className="ml-2 w-20 rounded border p-1" /></label><label>Last source item<input aria-label="Last source item" type="number" min="1" max={parsed.length} value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} className="ml-2 w-20 rounded border p-1" /></label></div>}
           {complaint && !parsed.length && <p className="mt-3 text-amber-800">Text extracted, but no explicit paragraph numbers or Word list items were detected. Check the original formatting.</p>}
           <ul className="mt-3 space-y-2">{findings.map((f, i) => <li key={i} className="rounded border-l-4 border-amber-600 bg-amber-50 p-2">¶{f.paragraph}: <strong>{f.kind}</strong> — {f.detail}</li>)}</ul>
           {complaint && parsed.length > 0 && !findings.length && <p className="mt-3">No numbering gaps, duplicates, or missing loaded exhibits detected. Facts and quotations remain unverified.</p>}
+          {complaint && <div className="mt-4 border-t pt-3 text-sm"><h3 className="font-bold">Exhibit quotation text checks</h3><p>{quoteChecks.filter(x => x.status === 'matched').length} exact text matches · {quoteChecks.filter(x => x.status === 'not-found').length} not found · {quoteChecks.filter(x => x.status === 'source-unavailable').length} source text unavailable. Checks cover quotations of at least 20 characters in paragraphs citing loaded exhibits. A text match does not establish context or accuracy.</p><ul className="mt-2 max-h-64 space-y-2 overflow-auto">{quoteChecks.filter(x => x.status !== 'matched').map((check, index) => <li key={index} className="rounded bg-amber-50 p-2">¶{check.paragraph}: {check.status === 'not-found' ? 'Text not found' : 'Source text unavailable'} — “{check.quote}” · {check.sources.join('; ')}</li>)}</ul></div>}
         </section>
         <section className="grid gap-4 rounded-xl bg-white p-5 shadow xl:grid-cols-2">
           <div><h2 className="text-lg font-bold">Working paragraphs ({paragraphs.length})</h2><div className="mt-3 max-h-[65vh] space-y-3 overflow-auto">{paragraphs.map((para, index) => <article key={`${para.number}-${index}`} className="rounded border p-3"><strong>¶{para.number}</strong><textarea aria-label={`Paragraph ${para.number}`} className="mt-2 min-h-28 w-full rounded border p-2" value={para.text} onChange={e => setData(prev => ({ ...prev, edits: { ...prev.edits, [String(index)]: e.target.value } }))} />{para.exhibits.map((ex, i) => <button key={i} className="mr-2 text-sm text-amber-800 underline" onClick={() => { const doc = data.documents.find(d => d.kind === 'exhibit' && d.exhibit === ex); if (doc) setSelected(doc.id); }}>{`Exhibit ${ex}`}</button>)}</article>)}</div></div>

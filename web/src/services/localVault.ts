@@ -134,6 +134,23 @@ export async function readFile(file: File): Promise<{ base64: string; sha256: st
     const listItems = [...document.querySelectorAll('li')];
     if (listItems.length) numberedText = listItems.map((li, i) => `${i + 1}. ${li.textContent?.trim() || ''}`).join('\n');
   }
+  if (ext === 'pdf') {
+    try {
+      const pdfjs = await import('pdfjs-dist');
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+      const task = pdfjs.getDocument({ data: new Uint8Array(bytes) });
+      try {
+        const pdf = await task.promise;
+        const pages: string[] = [];
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+          const page = await pdf.getPage(pageNumber);
+          const content = await page.getTextContent();
+          pages.push(content.items.map(item => 'str' in item ? item.str : '').join(' '));
+        }
+        text = pages.join('\n\n');
+      } finally { await task.destroy(); }
+    } catch { text = ''; } // Retain the original even if a PDF is scanned, encrypted, or unsupported.
+  }
   return { base64, sha256, text, numberedText };
 }
 
