@@ -57,7 +57,10 @@ export default function PrivateMatterApp() {
   }, [data, passphrase]);
   const complaint = data.documents.find(doc => doc.kind === 'complaint');
   const parsed = useMemo(() => paragraphsFrom(complaint?.numberedText || complaint?.extractedText || ''), [complaint]);
-  const paragraphs = useMemo(() => parsed.map((p, index) => ({ ...p, text: data.edits[String(index)] ?? p.text })), [parsed, data.edits]);
+  const paragraphs = useMemo(() => parsed.map((p, index) => {
+    const text = data.edits[String(index)] ?? p.text;
+    return { ...p, text, exhibits: citedExhibits(text) };
+  }), [parsed, data.edits]);
   const findings = useMemo(() => audit(paragraphs, data.documents), [paragraphs, data.documents]);
   const quoteChecks = useMemo(() => reviewQuotes(paragraphs, data.documents), [paragraphs, data.documents]);
   const active = data.documents.find(doc => doc.id === selected) || complaint;
@@ -82,11 +85,31 @@ export default function PrivateMatterApp() {
       const doc: StoredDocument = { id: crypto.randomUUID(), name: file.name, kind, exhibit: exhibit?.trim().toUpperCase(),
         mime: file.type, sha256: source.sha256, originalBase64: source.base64, extractedText: source.text,
         numberedText: source.numberedText, countHeadings: source.countHeadings, uploadedAt: new Date().toISOString() };
-      setData(prev => ({ ...prev, documents: [...prev.documents, doc], edits: kind === 'complaint' ? {} : prev.edits }));
+      setData(prev => ({ ...prev, documents: [...prev.documents.map(existing =>
+        kind === 'complaint' && existing.kind === 'complaint' ? { ...existing, kind: 'other' as const } : existing), doc],
+        edits: kind === 'complaint' ? {} : prev.edits }));
+      if (kind === 'complaint') { setRangeStart(''); setRangeEnd(''); }
       setSelected(doc.id);
       setMessage(source.text ? `Loaded ${file.name}; compare extracted text and reconstructed Word list numbers with the original.` :
         `Preserved ${file.name}; text extraction is unavailable for this format. Download or inspect the original before relying on it.`);
     } catch (error) { setMessage(`Could not read file: ${String(error)}`); }
+  }
+
+  async function addExhibits(files: File[]) {
+    const loaded: StoredDocument[] = [];
+    const skipped: string[] = [];
+    for (const file of files) {
+      const label = file.name.match(/(?:^|[^a-z0-9])(?:exhibit[\s_-]*)?(P[\s_-]*\d+[A-Z]?)(?=[^a-z0-9]|$)/i)?.[1]?.replace(/[\s_]/g, '-').toUpperCase();
+      if (!label || file.size > 20 * 1024 * 1024) { skipped.push(file.name); continue; }
+      try {
+        const source = await readFile(file);
+        loaded.push({ id: crypto.randomUUID(), name: file.name, kind: 'exhibit', exhibit: label,
+          mime: file.type, sha256: source.sha256, originalBase64: source.base64, extractedText: source.text,
+          numberedText: source.numberedText, countHeadings: source.countHeadings, uploadedAt: new Date().toISOString() });
+      } catch { skipped.push(file.name); }
+    }
+    if (loaded.length) setData(prev => ({ ...prev, documents: [...prev.documents, ...loaded] }));
+    setMessage(`Loaded ${loaded.length} labeled exhibits. ${skipped.length} skipped (missing recognizable P-number, over 20 MB, or unreadable): ${skipped.join(', ') || 'none'}. Confirm each label and source text against its original.`);
   }
 
   async function exportDraft() {
@@ -168,6 +191,10 @@ export default function PrivateMatterApp() {
           <label className="mt-3 block text-sm font-semibold">Exhibit file<input name="exhibit-file" required type="file" accept=".docx,.txt,.md,.pdf" className="mt-1 block w-full text-sm" /></label>
           <button className="mt-3 rounded bg-slate-800 px-4 py-2 font-semibold text-white">Add exhibit</button>
         </form>
+        <label className="mt-4 block border-t pt-4 text-sm font-semibold">Add labeled exhibits together (.pdf, .docx, .txt, .md)
+          <input type="file" multiple accept=".pdf,.docx,.txt,.md" className="mt-2 block w-full text-sm" onChange={e => { const files = Array.from(e.target.files || []); if (files.length) void addExhibits(files); e.currentTarget.value = ''; }} />
+          <span className="mt-1 block font-normal text-slate-600">Filenames must contain P-16 or a similar P-number. Check labels after import.</span>
+        </label>
         <ul className="mt-5 space-y-2">{data.documents.map(doc => <li key={doc.id} className="rounded border p-2 text-sm"><button className="font-semibold text-left" onClick={() => setSelected(doc.id)}>{doc.exhibit && `Exhibit ${doc.exhibit} · `}{doc.name}</button><p className="break-all text-xs text-slate-500">SHA-256: {doc.sha256}</p><button className="mt-1 text-amber-800 underline" onClick={() => downloadOriginal(doc)}>Download original</button></li>)}</ul>
       </aside>
       <div className="space-y-6">
