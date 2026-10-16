@@ -7,8 +7,10 @@ import stat
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
+from services.registry.skill_revisions import revise_packages
 
-def import_packages(archives: list[Path], destination: Path) -> list[str]:
+
+def import_packages(archives: list[Path], destination: Path, *, reviewed: bool = False) -> list[str]:
     """Validate the complete batch before copying; never overwrite an installation."""
     destination = destination.resolve()
     repository = Path(__file__).resolve().parents[2]
@@ -35,7 +37,7 @@ def import_packages(archives: list[Path], destination: Path) -> list[str]:
                     name = root.name
                     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name):
                         raise ValueError("Invalid skill directory name")
-                    if name in packages or (destination / name).exists():
+                    if name in packages or (destination / name).exists() or (destination / name).is_symlink():
                         raise ValueError(f"Duplicate or already installed skill: {name}")
                     members = []
                     seen = set()
@@ -59,7 +61,26 @@ def import_packages(archives: list[Path], destination: Path) -> list[str]:
                 target = staging / name / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(data)
+        if reviewed:
+            required = {"pa-litigation-command", "pa-law-reference", "pleading-fact-paragraphs",
+                        "style-latimore-legal-documents", "accuracy-verification-pass", "latimore-lead-research"}
+            if not required.issubset(packages):
+                raise ValueError("Reviewed integration requires all six supplied skill packages")
+            if (destination / ".integration").exists():
+                raise ValueError("Revision audit already exists; use a new installation directory")
+            revise_packages(staging)
         destination.mkdir(parents=True, exist_ok=True)
-        for name in packages:
-            shutil.copytree(staging / name, destination / name)
+        installed = []
+        try:
+            for name in list(packages) + ([".integration"] if reviewed else []):
+                if (destination / name).exists() or (destination / name).is_symlink():
+                    raise ValueError(f"Installation target already exists: {name}")
+                # Reserve exclusively, then roll back this batch on copy failure.
+                (destination / name).mkdir()
+                installed.append(destination / name)
+                shutil.copytree(staging / name, destination / name, dirs_exist_ok=True)
+        except Exception:
+            for path in reversed(installed):
+                shutil.rmtree(path)
+            raise
     return sorted(packages)
