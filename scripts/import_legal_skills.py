@@ -11,7 +11,8 @@ from services.registry.skill_import import import_packages
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--destination", type=Path, required=True)
+    parser.add_argument("--reviewed", action="store_true", help="Apply reviewed corrections to the complete six-package bundle; retain private originals and hashes")
     parser.add_argument("archives", type=Path, nargs="+")
     args = parser.parse_args()
-    for name in import_packages(args.archives, args.destination):
+    for name in import_packages(args.archives, args.destination, reviewed=args.reviewed):
         print(name)
